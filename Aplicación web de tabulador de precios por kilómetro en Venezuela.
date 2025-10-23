@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabulador de Precios VZLA 🇻🇪</title>
+    <style>
+        /* CSS para el diseño tipo aplicación */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .app-container {
+            background-color: #ffffff;
+            width: 100%;
+            max-width: 450px; /* Tamaño típico de una app móvil */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .section {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="number"], select {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1.1em;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        .result-box {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .result-box h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+
+        .result-price {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #28a745;
+            margin: 10px 0;
+        }
+
+        .safety-section {
+            background-color: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .safety-section h4 {
+            color: #856404;
+            margin-top: 0;
+        }
+
+        .safety-section ul {
+            padding-left: 20px;
+            font-size: 0.9em;
+        }
+
+        /* Ocultar el marcador de inicio/destino si no es necesario */
+        .hidden-label {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        🚚 Tabulador de Costos - Venezuela
+    </header>
+
+    <div class="section">
+        <h2>💰 Calcular Tarifa</h2>
+
+        <label for="state-selector">Selecciona Estado:</label>
+        <select id="state-selector">
+            </select>
+        
+        <label class="hidden-label" for="origin">Punto de Partida:</label>
+        <input class="hidden-label" type="text" id="origin" value="Inicio de Ruta (Ej. Maracaibo)" disabled>
+        
+        <label class="hidden-label" for="destination">Punto de Llegada:</label>
+        <input class="hidden-label" type="text" id="destination" value="Fin de Ruta (Ej. Cabimas)" disabled>
+
+        <label for="kilometraje">Distancia Total (Km):</label>
+        <input type="number" id="kilometraje" placeholder="Ej: 80" min="1" required>
+
+        <button onclick="calcularPrecio()">CALCULAR PRECIO</button>
+
+        <div id="resultado" class="result-box" style="display:none;">
+            <h3>Costo Estimado</h3>
+            <div class="result-price" id="costo-total">$0.00</div>
+            <p id="detalle-tarifa" style="font-size: 0.9em;"></p>
+        </div>
+    </div>
+
+    <div class="section safety-section">
+        <h4>🚨 Normas de Seguridad y Condiciones de la Empresa</h4>
+        <ul>
+            <li>**Verificación de Ruta:** Todas las rutas deben ser aprobadas previamente por el departamento de logística.</li>
+            <li>**Límite de Velocidad:** El conductor debe respetar el límite de velocidad legal en todo momento.</li>
+            <li>**Política de Combustible:** El cálculo no incluye costos de combustible *adicionales* por desvío.</li>
+            <li>**Seguro y Responsabilidad:** La tarifa incluye seguro básico. Daños mayores sujetos a condiciones contractuales.</li>
+            <li>**Tarifas Sujetas a Cambio:** Los costos por km están sujetos a revisión mensual basados en la tasa oficial del BCV.</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    // ======================================================
+    // JAVASCRIPT: Lógica del Tabulador de Precios y Estados
+    // ======================================================
+
+    // 1. BASE DE DATOS DE TARIFAS (POR ESTADO INDIVIDUAL DE VENEZUELA)
+    // Se usa una estructura simple, pero funcional, para aplicar diferentes tarifas por estado.
+    const tarifasPorEstado = {
+        // ZULIA: Es un estado grande, puede tener una tarifa base más alta.
+        "Zulia": {
+            tarifaBaseUSD: 15.00, // Costo fijo por servicio en $
+            costoPorKm: 0.55,     // Costo por cada Km adicional en $
+            kmIncluidos: 10,      // Km que cubre la tarifa base
+            nombreTarifa: "Tarifa Regional Zulia"
+        },
+        // CARABOBO: Un estado centralizado.
+        "Carabobo": {
+            tarifaBaseUSD: 10.00,
+            costoPorKm: 0.40,
+            kmIncluidos: 5,
+            nombreTarifa: "Tarifa Central Carabobo"
+        },
+        // DISTRITO CAPITAL / MIRANDA: Alta densidad, puede justificar una base más baja y costo por km mayor.
+        "D. Capital / Miranda": {
+            tarifaBaseUSD: 12.00,
+            costoPorKm: 0.65,
+            kmIncluidos: 5,
+            nombreTarifa: "Tarifa Metropolitana"
+        },
+        // TACHIRA: Estado fronterizo, puede tener un costo por Km distinto.
+        "Táchira": {
+            tarifaBaseUSD: 18.00,
+            costoPorKm: 0.50,
+            kmIncluidos: 15,
+            nombreTarifa: "Tarifa Fronteriza Táchira"
+        },
+        // Monagas - Ejemplo para otro estado
+        "Monagas": {
+            tarifaBaseUSD: 14.00,
+            costoPorKm: 0.45,
+            kmIncluidos: 8,
+            nombreTarifa: "Tarifa Oriental Monagas"
+        },
+        "Falcón": {
+            tarifaBaseUSD: 11.00,
+            costoPorKm: 0.48,
+            kmIncluidos: 10,
+            nombreTarifa: "Tarifa Regional Falcón"
+        },
+        "Lara": {
+            tarifaBaseUSD: 10.00,
+            costoPorKm: 0.42,
+            kmIncluidos: 5,
+            nombreTarifa: "Tarifa Regional Lara"
+        }
+        // *Puedes añadir más estados aquí con sus propias reglas de costo*
+    };
+
+    // 2. FUNCIÓN PARA CARGAR LOS ESTADOS EN EL SELECTOR
+    function cargarEstados() {
+        const selector = document.getElementById('state-selector');
+        // El primer valor es una opción por defecto.
+        let htmlOptions = '<option value="">-- Seleccione un Estado --</option>';
+        
+        // Itera sobre las claves del objeto tarifasPorEstado para crear las opciones.
+        for (const estado in tarifasPorEstado) {
+            htmlOptions += `<option value="${estado}">${estado}</option>`;
+        }
+        selector.innerHTML = htmlOptions;
+    }
+
+    // Ejecuta la carga de estados al iniciar la aplicación
+    cargarEstados();
+
+    // 3. FUNCIÓN PRINCIPAL DE CÁLCULO
+    function calcularPrecio() {
+        const estadoSeleccionado = document.getElementById('state-selector').value;
+        const kilometrajeInput = document.getElementById('kilometraje').value;
+        const kilometraje = parseFloat(kilometrajeInput);
+        const resultadoDiv = document.getElementById('resultado');
+        const costoTotalSpan = document.getElementById('costo-total');
+        const detalleP = document.getElementById('detalle-tarifa');
+
+        resultadoDiv.style.display = 'none'; // Ocultar resultados por defecto
+
+        // VALIDACIONES
+        if (!estadoSeleccionado || isNaN(kilometraje) || kilometraje <= 0) {
+            alert("⚠️ Por favor, selecciona un estado y un kilometraje válido (mayor a 0).");
+            return;
+        }
+
+        const tarifa = tarifasPorEstado[estadoSeleccionado];
+        let costoFinal = tarifa.tarifaBaseUSD;
+        let kmExtra = 0;
+        let costoKmExtra = 0;
+
+        // LÓGICA DEL TABULADOR
+        if (kilometraje > tarifa.kmIncluidos) {
+            kmExtra = kilometraje - tarifa.kmIncluidos;
+            costoKmExtra = kmExtra * tarifa.costoPorKm;
+            costoFinal += costoKmExtra;
+        }
+
+        // MOSTRAR RESULTADOS
+        resultadoDiv.style.display = 'block';
+        
+        // Muestra el costo total final formateado a 2 decimales
+        costoTotalSpan.textContent = `$${costoFinal.toFixed(2)}`;
+
+        // Muestra el desglose del cálculo
+        let detalleTexto = `Tarifa Aplicada: ${tarifa.nombreTarifa}.<br>`;
+        detalleTexto += `Costo Base ($${tarifa.tarifaBaseUSD.toFixed(2)}) incluye ${tarifa.kmIncluidos} Km.<br>`;
+        
+        if (kmExtra > 0) {
+            detalleTexto += `${kmExtra.toFixed(0)} Km adicionales multiplicados por $${tarifa.costoPorKm.toFixed(2)} = $${costoKmExtra.toFixed(2)}.<br>`;
+        } else {
+            detalleTexto += `Distancia dentro del límite base.`;
+        }
+
+        detalleP.innerHTML = detalleTexto;
+    }
+</script>
+
+</body>
+</html>
